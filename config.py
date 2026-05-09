@@ -5,7 +5,8 @@ import os
 
 # Paths
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-INPUT_DIR = os.path.join(PROJECT_ROOT, 'input_images')
+INPUT_DIR = os.path.join(PROJECT_ROOT, 'input_images', 'images')
+LABELS_DIR = os.path.join(PROJECT_ROOT, 'input_images', 'labels')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'output_images')
 
 # Processing parameters

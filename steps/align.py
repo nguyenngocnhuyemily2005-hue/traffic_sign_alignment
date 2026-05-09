@@ -1,5 +1,5 @@
 # steps/align.py
-# Image alignment step
+# Image alignment step to correct perspective distortion and ensure consistent orientation
 
 import cv2
 import numpy as np
