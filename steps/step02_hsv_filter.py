@@ -78,13 +78,4 @@ def hsv_filter(roi):
         red_mask2
     )
 
-    # ------------------------------------------------
-    # Combine all masks
-    # ------------------------------------------------
-
-    full_mask = cv2.add(
-        blue_mask,
-        red_mask
-    )
-
-    return blue_mask, red_mask, full_mask
+    return blue_mask, red_mask

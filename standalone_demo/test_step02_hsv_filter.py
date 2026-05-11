@@ -68,21 +68,16 @@ def hsv_filter(roi):
         upper_red2
     )
 
+    # ------------------------------------------------
+    # Combine red masks
+    # ------------------------------------------------
+
     red_mask = cv2.add(
         red_mask1,
         red_mask2
     )
 
-    # ------------------------------------------------
-    # COMBINE MASKS
-    # ------------------------------------------------
-
-    full_mask = cv2.add(
-        blue_mask,
-        red_mask
-    )
-
-    return blue_mask, red_mask, full_mask
+    return blue_mask, red_mask
 
 
 # ---------------------------------------------------
@@ -154,7 +149,7 @@ for file_name in image_files:
     # ---------------------------------------------
     # STEP 2 — HSV FILTERING
     # ---------------------------------------------
-    blue_mask, red_mask, full_mask = hsv_filter(roi)
+    blue_mask, red_mask = hsv_filter(roi)
 
     # ---------------------------------------------
     # SAVE OUTPUTS
@@ -169,11 +164,6 @@ for file_name in image_files:
         red_mask
     )
 
-    cv2.imwrite(
-        f'output_images/full_mask_{file_name}',
-        full_mask
-    )
-
     # ---------------------------------------------
     # VISUALIZATION
     # ---------------------------------------------
@@ -181,21 +171,19 @@ for file_name in image_files:
         'ROI',
         'Blue Mask',
         'Red Mask',
-        'Combined Mask'
     ]
 
     images = [
         cv2.cvtColor(roi, cv2.COLOR_BGR2RGB),
         blue_mask,
         red_mask,
-        full_mask
     ]
 
     plt.figure(figsize=(16, 5))
 
-    for i in range(4):
+    for i in range(3):
 
-        plt.subplot(1, 4, i + 1)
+        plt.subplot(1, 3, i + 1)
 
         if i == 0:
             plt.imshow(images[i])

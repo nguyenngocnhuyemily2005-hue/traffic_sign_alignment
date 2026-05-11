@@ -1,5 +1,3 @@
-# Ignore local image inputs
-input_images/
 output_images/
 __pycache__/
 *.pyc
