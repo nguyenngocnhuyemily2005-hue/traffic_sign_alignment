@@ -2,7 +2,7 @@
 # Main entry point for the Traffic Sign Alignment Pipeline
 
 from pipeline.processor import TrafficSignProcessor
-import config
+import config as config
 
 def main():
     processor = TrafficSignProcessor()

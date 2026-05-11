@@ -1,135 +1,290 @@
 # Traffic Sign Alignment Pipeline
 
-An image processing pipeline designed specifically for traffic sign alignment. This project provides a modular framework for preprocessing traffic sign images through multiple enhancement and alignment steps.
+A modular Computer Vision pipeline for traffic sign detection and perspective alignment using classical image processing techniques.
 
-## Features
+This project focuses on:
+- Region of Interest (ROI) extraction
+- HSV color filtering
+- Morphological processing
+- Edge and contour detection
+- Shape analysis
+- Perspective rectification (homography)
 
-- **Modular Pipeline**: Configurable processing steps that can be enabled/disabled
-- **Image Processing Steps**:
-  - Cropping: Automatic border removal
-  - Resizing: Standardize image dimensions
-  - Enhancement: Contrast and brightness adjustment
-  - Sharpening: Improve image clarity
-  - Alignment: Feature-based image alignment
-- **Batch Processing**: Process multiple images automatically
-- **Extensible Architecture**: Easy to add new processing steps
+The pipeline is designed for educational and experimental purposes in Computer Vision.
 
-## Project Structure
+---
 
+# Features
+
+- Modular step-by-step pipeline
+- Classical Computer Vision approach (no deep learning)
+- Easy debugging and visualization
+- Standalone testing scripts for each step
+- Batch image processing support
+- Perspective correction for traffic signs
+
+---
+
+# Current Pipeline
+
+```text
+Input Image
+    ↓
+STEP 1 — ROI Extraction
+    ↓
+STEP 2 — HSV Color Filtering
+    ↓
+STEP 3 — Morphology & Denoising
+    ↓
+STEP 4 — Edge & Contour Detection
+    ↓
+STEP 5 — Shape Analysis
+    ↓
+STEP 6 — Perspective Rectification
+    ↓
+STEP 7 — Image Enhancement
 ```
-traffic_sign_pipeline/
+
+---
+
+# Project Structure
+
+```text
+traffic_sign_alignment/
 │
-├── config.py                 # Configuration settings and parameters
-├── main.py                   # Main entry point for running the pipeline
+├── config.py
+├── main.py
+├── README.md
 │
-├── utils/
-│   └── io.py                 # Input/output utilities for image handling
+├── input_images/
+│   └── sign1.jpg
+│
+├── output_images/
+│
+├── standalone_demo/
+│   ├── test_step01_roi.py
+│   ├── test_step02_hsv_filter.py
+│   ├── test_step03_morphology.py
+│   └── test_step04_edge_contour.py
 │
 ├── steps/
-│   ├── crop.py               # Image cropping functionality
-│   ├── resize.py             # Image resizing operations
-│   ├── enhance.py            # Image enhancement (contrast, brightness)
-│   ├── sharpen.py            # Image sharpening algorithms
-│   └── align.py              # Image alignment using feature matching
+│   ├── step01_roi.py
+│   ├── step02_hsv_filter.py
+│   ├── step03_morphology.py
+│   ├── step04_edge_contour.py
+│   ├── step05_shape_analysis.py
+│   ├── step06_rectify.py
+│   └── step07_enhance.py
 │
-└── pipeline/
-    └── processor.py          # Main pipeline orchestrator
+├── pipeline/
+│   └── processor.py
+│
+└── utils/
+    └── io.py
 ```
 
-## Installation
+---
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/traffic-sign-alignment.git
-   cd traffic-sign-alignment
-   ```
+# Installation
 
-2. Install dependencies:
-   ```bash
-   pip install opencv-python numpy
-   ```
+## 1. Clone repository
 
-3. Set up input directory:
-   ```bash
-   mkdir -p traffic_sign_pipeline/input_images
-   # Place your traffic sign images in this directory
-   ```
+```bash
+git clone https://github.com/yourusername/traffic_sign_alignment.git
 
-## Usage
+cd traffic_sign_alignment
+```
 
-### Basic Usage
+---
 
-1. Place your traffic sign images in the `/input_images/` directory.
+## 2. Install dependencies
 
-2. Run the pipeline:
-   ```bash
-   cd traffic_sign_alignment
-   python main.py
-   ```
+```bash
+pip install opencv-python numpy matplotlib
+```
 
-3. Processed images will be saved in `traffic_sign_pipeline/output_images/`.
+---
 
-### Configuration
+# Usage
 
-Modify `config.py` to customize:
-- Input/output directories
-- Image processing parameters
-- Enabled processing steps
+## Run standalone demos
 
-Example configuration:
+Used for debugging and visualizing each individual step.
+
+Example:
+
+```bash
+python standalone_demo/test_step01_roi.py
+```
+
+or
+
+```bash
+python standalone_demo/test_step02_hsv_filter.py
+```
+
+---
+
+## Run full pipeline
+
+```bash
+python main.py
+```
+
+Processed outputs will be saved inside:
+
+```text
+output_images/
+```
+
+---
+
+# Pipeline Steps
+
+## STEP 1 — ROI Extraction
+
+Goal:
+- Reduce unnecessary background
+- Focus on likely traffic sign regions
+
+Current method:
+- Right-side crop
+- Upper-region crop
+- Simple heuristic ROI
+
+---
+
+## STEP 2 — HSV Color Filtering
+
+Goal:
+- Extract traffic sign colors
+
+Current targets:
+- Blue traffic signs
+- Red traffic signs
+
+Techniques:
+- RGB → HSV conversion
+- Color thresholding
+- Binary mask generation
+
+---
+
+## STEP 3 — Morphology & Denoising
+
+Goal:
+- Remove noise from masks
+- Connect fragmented regions
+
+Techniques:
+- Morphological Closing
+
+---
+
+## STEP 4 — Edge & Contour Detection
+
+Goal:
+- Detect candidate traffic sign regions
+
+Techniques:
+- Canny Edge Detection
+- Contour Extraction
+- Area filtering
+
+---
+
+## STEP 5 — Shape Analysis
+
+Goal:
+- Determine whether a contour resembles a traffic sign
+
+Techniques:
+- Polygon approximation
+- Shape classification
+- Rectangle / Triangle / Circle detection
+- Geometric filtering
+
+---
+
+## STEP 6 — Perspective Rectification
+
+Goal:
+- Align traffic signs into a front-facing view
+
+Techniques:
+- Corner extraction
+- Homography
+- Perspective transform
+- warpPerspective()
+
+---
+
+## STEP 7 — Enhancement
+
+Goal:
+- Improve visual quality of aligned signs
+
+Possible techniques:
+- Sharpening
+- Contrast enhancement
+- Histogram equalization
+
+---
+
+# Configuration
+
+Main configuration file:
+
+```text
+config.py
+```
+
+Example:
+
 ```python
-# config.py
-DEFAULT_IMAGE_SIZE = (224, 224)
-SHARPEN_FACTOR = 1.5
-ENABLED_STEPS = ['crop', 'resize', 'enhance', 'sharpen', 'align']
+ENABLED_STEPS = [
+    'roi',
+    'hsv_filter',
+    'morphology',
+    'edge_contour',
+    'shape_analysis',
+    'rectify',
+    'enhance'
+]
 ```
 
-### Advanced Usage
+---
 
-You can also use individual processing steps programmatically:
+# Requirements
 
-```python
-from steps.crop import auto_crop
-from steps.align import align_image
-from utils.io import load_image, save_image
-
-# Load and process an image
-image = load_image('path/to/image.jpg')
-cropped = auto_crop(image)
-aligned = align_image(cropped, reference_image)
-save_image(aligned, 'aligned_image.jpg')
-```
-
-## Processing Steps
-
-### 1. Crop
-Automatically removes borders and focuses on the main content of traffic signs.
-
-### 2. Resize
-Standardizes image dimensions for consistent processing.
-
-### 3. Enhance
-Improves image quality through contrast adjustment and brightness correction.
-
-### 4. Sharpen
-Applies sharpening filters to improve edge definition.
-
-### 5. Align
-Uses feature matching algorithms to align images, correcting for rotation and perspective.
-
-## Requirements
-
-- Python 3.7+
-- OpenCV 4.0+
+- Python 3.11+
+- OpenCV
 - NumPy
+- Matplotlib
 
-## Contributing
+---
 
-1. Fork the repository
-2. Create a feature branch
-3. Add your processing step or improvement
-4. Submit a pull request
+# Notes
 
-## License
+This project intentionally uses traditional Computer Vision techniques instead of deep learning models in order to:
+- better understand image processing fundamentals
+- visualize each processing stage
+- study geometric transformations and contour analysis
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+---
+
+# Future Improvements
+
+Possible future upgrades:
+- Better ROI estimation
+- Night-condition robustness
+- Circular sign handling
+- Adaptive HSV thresholds
+- Lane detection integration
+- Machine learning classification
+
+---
+
+# License
+
+MIT License

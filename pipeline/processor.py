@@ -2,70 +2,187 @@
 # Main processor for the Traffic Sign Alignment Pipeline
 
 import os
-import cv2
-from config import ENABLED_STEPS, INPUT_DIR, OUTPUT_DIR
-from utils.io import load_image, save_image, get_image_list, load_label
-from steps.crop import auto_crop
-from steps.resize import resize_image
-from steps.enhance import enhance_contrast
-from steps.sharpen import sharpen_image
-from steps.align import align_image
 
-# all steps in order
+from config import ENABLED_STEPS
+from utils.io import (
+    load_image,
+    save_image,
+    get_image_list,
+    load_label
+)
+
+# Import pipeline steps
+from steps.step01_roi import extract_roi
+from steps.step02_hsv_filter import hsv_filter
+from steps.step03_morphology import apply_morphology
+from steps.step04_edge_contour import detect_contours
+from steps.step05_shape_analysis import analyze_shapes
+from steps.step06_rectify import rectify_sign
+from steps.step07_enhance import enhance_image
+
+
 class TrafficSignProcessor:
+
     def __init__(self):
+
+        # Pipeline step mapping
         self.steps = {
-            'crop': self._crop_step,
-            'resize': self._resize_step,
-            'enhance': self._enhance_step,
-            'sharpen': self._sharpen_step,
-            'align': self._align_step
+            'roi': self._roi_step,
+            'hsv_filter': self._hsv_filter_step,
+            'morphology': self._morphology_step,
+            'edge_contour': self._edge_contour_step,
+            'shape_analysis': self._shape_analysis_step,
+            'rectify': self._rectify_step,
+            'enhance': self._enhance_step
         }
 
-    # currently use auto_crop as default, but can be replaced with manual cropping if needed
-    def _crop_step(self, image):
-        return auto_crop(image)
+    # ---------------------------------------------------
+    # STEP 1 — ROI Extraction
+    # ---------------------------------------------------
+    def _roi_step(self, image):
 
-    def _resize_step(self, image):
-        return resize_image(image)
+        roi = extract_roi(image)
+        return roi
 
+    # ---------------------------------------------------
+    # STEP 2 — HSV Filtering
+    # ---------------------------------------------------
+    def _hsv_filter_step(self, image):
+
+        mask = hsv_filter(image)
+        return mask
+
+    # ---------------------------------------------------
+    # STEP 3 — Morphology
+    # ---------------------------------------------------
+    def _morphology_step(self, mask):
+
+        cleaned_mask = apply_morphology(mask)
+        return cleaned_mask
+
+    # ---------------------------------------------------
+    # STEP 4 — Edge + Contour Detection
+    # ---------------------------------------------------
+    def _edge_contour_step(self, mask):
+
+        contours = detect_contours(mask)
+        return contours
+
+    # ---------------------------------------------------
+    # STEP 5 — Shape Analysis
+    # ---------------------------------------------------
+    def _shape_analysis_step(self, contours):
+
+        corners = analyze_shapes(contours)
+        return corners
+
+    # ---------------------------------------------------
+    # STEP 6 — Perspective Rectification
+    # ---------------------------------------------------
+    def _rectify_step(self, data):
+
+        # data should contain:
+        # original image + corner points
+
+        original_image = data["image"]
+        corners = data["corners"]
+
+        rectified = rectify_sign(original_image, corners)
+
+        return rectified
+
+    # ---------------------------------------------------
+    # STEP 7 — Enhancement
+    # ---------------------------------------------------
     def _enhance_step(self, image):
-        return enhance_contrast(image)
 
-    def _sharpen_step(self, image):
-        return sharpen_image(image)
+        enhanced = enhance_image(image)
+        return enhanced
 
-    def _align_step(self, image):
-        # For alignment, we might need a reference image
-        # For now, assume no reference or use the first image as reference
-        return align_image(image)
-
+    # ---------------------------------------------------
+    # PROCESS SINGLE IMAGE
+    # ---------------------------------------------------
     def process_image(self, image_path, label_path=None):
-        """Process a single image through all enabled steps."""
-        image = load_image(image_path)
+
+        # Load original image
+        original_image = load_image(image_path)
+
+        # Optional label loading
         labels = load_label(label_path)
 
-        for step_name in ENABLED_STEPS:
-            if step_name in self.steps:
-                image = self.steps[step_name](image)
+        # Current working data
+        current_data = original_image
 
+        # Store intermediate outputs if needed
+        pipeline_data = {
+            "image": original_image
+        }
+
+        for step_name in ENABLED_STEPS:
+
+            if step_name not in self.steps:
+                continue
+
+            # Run current step
+            result = self.steps[step_name](current_data)
+
+            # Store intermediate outputs
+            pipeline_data[step_name] = result
+
+            # Special handling for shape analysis
+            if step_name == "shape_analysis":
+
+                current_data = {
+                    "image": original_image,
+                    "corners": result
+                }
+
+            else:
+                current_data = result
+
+        # Final output image
+        final_output = current_data
+
+        # Save output
         filename = os.path.basename(image_path)
-        output_path = save_image(image, f"processed_{filename}")
+
+        output_path = save_image(
+            final_output,
+            f"processed_{filename}"
+        )
+
         return output_path
 
+    # ---------------------------------------------------
+    # RUN FULL PIPELINE
+    # ---------------------------------------------------
     def run_pipeline(self):
-        """Run the pipeline on all images in the input directory."""
+
         pairs = get_image_list()
+
         if not pairs:
             print("No images found in input directory.")
             return
 
         print(f"Processing {len(pairs)} images...")
+
         for image_path, label_path in pairs:
+
             try:
-                output_path = self.process_image(image_path, label_path)
-                print(f"Processed: {image_path} -> {output_path}")
+
+                output_path = self.process_image(
+                    image_path,
+                    label_path
+                )
+
+                print(
+                    f"Processed: {image_path} -> {output_path}"
+                )
+
             except Exception as e:
-                print(f"Error processing {image_path}: {e}")
+
+                print(
+                    f"Error processing {image_path}: {e}"
+                )
 
         print("Pipeline completed.")

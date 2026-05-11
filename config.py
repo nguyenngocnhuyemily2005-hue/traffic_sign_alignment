@@ -15,4 +15,12 @@ SHARPEN_FACTOR = 1.5
 ENHANCE_CONTRAST = 1.2
 
 # Pipeline steps
-ENABLED_STEPS = ['crop', 'resize', 'enhance', 'sharpen', 'align']
+ENABLED_STEPS = [
+    'roi',
+    'hsv_filter',
+    'morphology',
+    'edge_contour',
+    'shape_analysis',
+    'rectify',
+    'enhance'
+]
