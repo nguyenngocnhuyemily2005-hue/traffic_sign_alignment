@@ -6,42 +6,29 @@ import numpy as np
 
 # ---------------------------------------------------
 # STEP 3 — MORPHOLOGY + AREA FILTERING
-#
-# Input:
-# - Binary mask from STEP 2
-#
-# Output:
-# - Closed mask
-# - Noise-filtered mask
 # ---------------------------------------------------
 
 def morphology_filter(mask):
 
     # ------------------------------------------------
     # MORPHOLOGICAL CLOSING
-    #
-    # Purpose:
-    # - Fill small holes
-    # - Connect broken regions
+    # Fill small holes
     # ------------------------------------------------
 
     kernel = cv2.getStructuringElement(
-        cv2.MORPH_ELLIPSE,
-        (5, 5)
+        cv2.MORPH_RECT,
+        (7, 7)
     )
 
     closed = cv2.morphologyEx(
         mask,
         cv2.MORPH_CLOSE,
-        kernel,
-        iterations=1
+        kernel
     )
 
     # ------------------------------------------------
     # CONNECTED COMPONENT ANALYSIS
-    #
-    # Purpose:
-    # - Remove tiny noisy blobs
+    # Remove tiny noise blobs
     # ------------------------------------------------
 
     num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
@@ -52,7 +39,7 @@ def morphology_filter(mask):
     filtered = np.zeros_like(closed)
 
     # ------------------------------------------------
-    # Keep only sufficiently large regions
+    # Keep only large enough regions
     # ------------------------------------------------
 
     MIN_AREA = 120
@@ -65,4 +52,4 @@ def morphology_filter(mask):
 
             filtered[labels == i] = 255
 
-    return closed, filtered
+    return filtered

@@ -5,16 +5,13 @@ from matplotlib import pyplot as plt
 
 
 # ===================================================
-# STEP 4 — SEMANTIC CONTOUR FILTERING
+# STEP 4 — CONTOUR EXTRACTION
 #
 # Pipeline:
 # STEP 1 → ROI
 # STEP 2 → HSV filtering
 # STEP 3 → Morphology + Area filtering
-# STEP 4 → Semantic contour filtering
-#
-# Goal:
-# Detect traffic-sign-like objects only
+# STEP 4 → Contour extraction
 # ===================================================
 
 
@@ -106,6 +103,11 @@ def hsv_filter(roi):
 
 def clean_mask(mask):
 
+    # ------------------------------------------------
+    # Morphological Closing
+    # Fill small holes inside signs
+    # ------------------------------------------------
+
     kernel = cv2.getStructuringElement(
         cv2.MORPH_RECT,
         (7, 7)
@@ -117,9 +119,9 @@ def clean_mask(mask):
         kernel
     )
 
-    # -----------------------------------------------
+    # ------------------------------------------------
     # AREA FILTERING
-    # -----------------------------------------------
+    # ------------------------------------------------
 
     num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
         closed,
@@ -142,10 +144,10 @@ def clean_mask(mask):
 
 
 # ===================================================
-# STEP 4 — SEMANTIC CONTOUR FILTERING
+# STEP 4 — CONTOUR EXTRACTION
 # ===================================================
 
-def semantic_contours(mask, roi):
+def extract_contours(mask, roi):
 
     contours, _ = cv2.findContours(
         mask,
@@ -163,59 +165,27 @@ def semantic_contours(mask, roi):
 
         area = cv2.contourArea(cnt)
 
-        # -------------------------------------------
-        # BASIC AREA FILTER
-        # -------------------------------------------
+        # ------------------------------------------------
+        # AREA FILTER
+        # ------------------------------------------------
 
         if area < 250:
             continue
 
-        perimeter = cv2.arcLength(
-            cnt,
-            True
-        )
-
-        if perimeter == 0:
-            continue
-
-        # -------------------------------------------
-        # SHAPE APPROXIMATION
-        # -------------------------------------------
-
-        epsilon = 0.02 * perimeter
-
-        approx = cv2.approxPolyDP(
-            cnt,
-            epsilon,
-            True
-        )
-
-        corners = len(approx)
-
-        # -------------------------------------------
+        # ------------------------------------------------
         # BOUNDING BOX
-        # -------------------------------------------
+        # ------------------------------------------------
 
         x, y, w, h = cv2.boundingRect(cnt)
 
+        if h == 0:
+            continue
+
         aspect_ratio = w / float(h)
 
-        fill_ratio = area / float(w * h)
-
-        # -------------------------------------------
-        # CIRCULARITY
-        # -------------------------------------------
-
-        circularity = (
-            4 * np.pi * area
-        ) / (perimeter * perimeter)
-
-        # -------------------------------------------
-        # POSITION FILTERING
-        # Traffic signs usually:
-        # - upper/middle region
-        # - right side
-        # -------------------------------------------
+        # ------------------------------------------------
+        # POSITION FILTER
+        # ------------------------------------------------
 
         center_x = x + w // 2
         center_y = y + h // 2
@@ -226,97 +196,36 @@ def semantic_contours(mask, roi):
         if center_x < roi_w * 0.10:
             continue
 
-        # -------------------------------------------
+        # ------------------------------------------------
         # REMOVE THIN OBJECTS
-        # like poles or cables
-        # -------------------------------------------
+        # ------------------------------------------------
 
         if aspect_ratio < 0.35:
             continue
 
-        # -------------------------------------------
-        # REMOVE EMPTY OBJECTS
-        # -------------------------------------------
-
-        if fill_ratio < 0.20:
-            continue
-
-        # ===================================================
-        # SHAPE CLASSIFICATION
-        # ===================================================
-
-        shape_type = "unknown"
-
-        color = (255, 0, 0)
-
-        # -------------------------------------------
-        # TRIANGLE
-        # -------------------------------------------
-
-        if corners == 3:
-
-            shape_type = "triangle"
-
-            color = (0, 255, 0)
-
-        # -------------------------------------------
-        # RECTANGLE
-        # -------------------------------------------
-
-        elif corners == 4:
-
-            if 0.5 <= aspect_ratio <= 2.5:
-
-                shape_type = "rectangle"
-
-                color = (255, 0, 0)
-
-        # -------------------------------------------
-        # CIRCLE
-        # -------------------------------------------
-
-        elif circularity > 0.65:
-
-            shape_type = "circle"
-
-            color = (0, 0, 255)
-
-        # -------------------------------------------
-        # REJECT UNKNOWN SHAPES
-        # -------------------------------------------
-
-        else:
-            continue
-
-        # ===================================================
-        # DRAW RESULTS
-        # ===================================================
+        # ------------------------------------------------
+        # DRAW CONTOUR
+        # ------------------------------------------------
 
         detected += 1
 
         cv2.drawContours(
             output,
-            [approx],
+            [cnt],
             -1,
-            color,
-            3
+            (0, 255, 0),
+            2
         )
+
+        # ------------------------------------------------
+        # DRAW BOUNDING BOX
+        # ------------------------------------------------
 
         cv2.rectangle(
             output,
             (x, y),
             (x + w, y + h),
-            color,
-            2
-        )
-
-        cv2.putText(
-            output,
-            shape_type,
-            (x, y - 10),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            color,
+            (255, 0, 0),
             2
         )
 
@@ -353,19 +262,19 @@ for file_name in image_files:
         continue
 
     # ===================================================
-    # STEP 1
+    # STEP 1 — ROI
     # ===================================================
 
     roi = extract_roi(img)
 
     # ===================================================
-    # STEP 2
+    # STEP 2 — HSV
     # ===================================================
 
     blue_mask, red_mask = hsv_filter(roi)
 
     # ===================================================
-    # STEP 3
+    # STEP 3 — MORPHOLOGY
     # ===================================================
 
     blue_clean = clean_mask(blue_mask)
@@ -378,20 +287,20 @@ for file_name in image_files:
     )
 
     # ===================================================
-    # STEP 4
+    # STEP 4 — CONTOURS
     # ===================================================
 
-    contour_output, detected = semantic_contours(
+    contour_output, detected = extract_contours(
         final_mask,
         roi
     )
 
     # ===================================================
-    # SAVE
+    # SAVE OUTPUT
     # ===================================================
 
     cv2.imwrite(
-        f'output_images/semantic_{file_name}',
+        f'output_images/contours_{file_name}',
         contour_output
     )
 
@@ -412,7 +321,7 @@ for file_name in image_files:
 
     plt.axis('off')
 
-    # MASK
+    # FILTERED MASK
     plt.subplot(1, 3, 2)
 
     plt.imshow(
@@ -435,7 +344,7 @@ for file_name in image_files:
     )
 
     plt.title(
-        f"Semantic Contours ({detected})"
+        f"Contours ({detected})"
     )
 
     plt.axis('off')

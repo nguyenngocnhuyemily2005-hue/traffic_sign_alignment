@@ -15,7 +15,7 @@ from utils.io import (
 from steps.step01_roi import extract_roi
 from steps.step02_hsv_filter import hsv_filter
 from steps.step03_morphology import apply_morphology
-from steps.step04_edge_contour import detect_contours
+from steps.step04_contour import detect_contours
 from steps.step05_shape_analysis import analyze_shapes
 from steps.step06_rectify import rectify_sign
 from steps.step07_enhance import enhance_image

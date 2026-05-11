@@ -92,16 +92,7 @@ def hsv_filter(roi):
         red_mask2
     )
 
-    # ------------------------------------------------
-    # COMBINE MASKS
-    # ------------------------------------------------
-
-    full_mask = cv2.add(
-        blue_mask,
-        red_mask
-    )
-
-    return full_mask
+    return blue_mask, red_mask
 
 
 # ---------------------------------------------------
@@ -116,15 +107,14 @@ def morphology_filter(mask):
     # ------------------------------------------------
 
     kernel = cv2.getStructuringElement(
-        cv2.MORPH_ELLIPSE,
-        (5, 5)
+        cv2.MORPH_RECT,
+        (7, 7)
     )
 
     closed = cv2.morphologyEx(
         mask,
         cv2.MORPH_CLOSE,
-        kernel,
-        iterations=1
+        kernel
     )
 
     # ------------------------------------------------
@@ -198,14 +188,33 @@ for file_name in image_files:
     # STEP 2 — HSV FILTERING
     # ------------------------------------------------
 
-    full_mask = hsv_filter(roi)
+    blue_mask, red_mask = hsv_filter(roi)
 
     # ------------------------------------------------
     # STEP 3 — MORPHOLOGY
+    # Process each color separately
     # ------------------------------------------------
 
-    closed_mask, filtered_mask = morphology_filter(
-        full_mask
+    blue_closed, blue_filtered = morphology_filter(
+        blue_mask
+    )
+
+    red_closed, red_filtered = morphology_filter(
+        red_mask
+    )
+
+    # ------------------------------------------------
+    # FINAL COMBINED MASK
+    # ------------------------------------------------
+
+    closed_mask = cv2.add(
+        blue_closed,
+        red_closed
+    )
+
+    filtered_mask = cv2.add(
+        blue_filtered,
+        red_filtered
     )
 
     # ------------------------------------------------
@@ -233,9 +242,14 @@ for file_name in image_files:
         'After Area Filtering'
     ]
 
+    original_mask = cv2.add(
+        blue_mask,
+        red_mask
+    )
+
     images = [
         cv2.cvtColor(roi, cv2.COLOR_BGR2RGB),
-        full_mask,
+        original_mask,
         closed_mask,
         filtered_mask
     ]

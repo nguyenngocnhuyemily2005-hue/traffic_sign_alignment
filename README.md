@@ -1,34 +1,13 @@
-# Traffic Sign Alignment Pipeline
+# Traffic Sign Detection Pipeline
 
-A traditional Computer Vision pipeline for detecting and analyzing Vietnamese traffic signs using image processing techniques.
+This project implements a traditional Computer Vision pipeline for traffic sign detection using OpenCV.
 
-This project focuses on building a modular traffic sign detection pipeline step-by-step using:
+The pipeline consists of:
 
-* ROI extraction
-* HSV color filtering
-* Morphological operations
-* Contour analysis
-* Polygon approximation
-* Semantic shape filtering
-
-The pipeline is designed mainly for experimentation, debugging, and understanding classical Computer Vision methods before moving into more advanced approaches.
-
----
-
-# Features
-
-* Modular processing pipeline
-* Traditional Computer Vision workflow
-* HSV-based traffic sign color detection
-* Morphological noise reduction
-* Polygon approximation using contours
-* Semantic shape classification:
-
-  * Triangle
-  * Rectangle
-  * Circle
-* Visualization for every processing step
-* Separate testing environment using standalone demo scripts
+1. ROI Extraction
+2. HSV Color Filtering
+3. Morphology + Area Filtering
+4. Contour Extraction
 
 ---
 
@@ -36,135 +15,35 @@ The pipeline is designed mainly for experimentation, debugging, and understandin
 
 ```text
 traffic_sign_alignment/
-│
+
 ├── input_images/
-│   └── sign images for testing
-│
+│ 
 ├── output_images/
-│   └── generated outputs from each step
-│
+│ 
 ├── standalone_demo/
 │   ├── test_step01_roi.py
-│   ├── test_step02_hsv_filter.py
+│   ├── test_step02_hsv.py
 │   ├── test_step03_morphology.py
 │   └── test_step04_contour.py
-│
+│ 
 ├── steps/
 │   ├── step01_roi.py
-│   ├── step02_hsv_filter.py
+│   ├── step02_hsv.py
 │   ├── step03_morphology.py
 │   └── step04_contour.py
-│
+├── utils/
+│   ├── io.py
 ├── README.md
-├── requirements.txt
+├── config.py
+├── .gitignore
 └── main.py
 ```
 
 ---
 
-# Pipeline Overview
-
-## STEP 1 — ROI Extraction
-
-Simple heuristic ROI extraction using:
-
-* Right-side crop
-* Upper-region crop
-
-Goal:
-Reduce unnecessary background and focus on roadside traffic signs.
-
----
-
-## STEP 2 — HSV Color Filtering
-
-Traffic sign color segmentation using HSV color space.
-
-Detected colors:
-
-* Blue traffic signs
-* Red traffic signs
-
-Techniques used:
-
-* Gaussian blur
-* HSV conversion
-* Color thresholding
-* Binary mask generation
-
----
-
-## STEP 3 — Morphology + Area Filtering
-
-Mask cleanup and noise reduction.
-
-Techniques used:
-
-* Morphological closing
-* Connected component analysis
-* Area filtering
-
-Goal:
-Preserve meaningful traffic sign regions while removing small noise blobs.
-
----
-
-## STEP 4 — Semantic Contour Filtering
-
-Traffic-sign-like shape detection using contour analysis.
-
-Techniques used:
-
-* Contour extraction
-* Polygon approximation
-* Circularity analysis
-* Aspect ratio filtering
-* Fill ratio filtering
-* Shape classification
-
-Supported shape types:
-
-* Triangle
-* Rectangle
-* Circle
-
----
-
 # Installation
 
-## Clone repository
-
-```bash
-git clone https://github.com/yourusername/traffic-sign-alignment.git
-
-cd traffic-sign-alignment
-```
-
----
-
-## Create virtual environment
-
-```bash
-python -m venv venv
-```
-
-Activate environment:
-
-### Windows
-
-```bash
-venv\Scripts\activate
-```
-
-### macOS / Linux
-
-```bash
-source venv/bin/activate
-```
-
----
-
-## Install dependencies
+Install required libraries:
 
 ```bash
 pip install opencv-python matplotlib numpy
@@ -172,72 +51,168 @@ pip install opencv-python matplotlib numpy
 
 ---
 
-# Usage
+# STEP 1 — ROI Extraction
 
-Place traffic sign images inside:
+Purpose:
+
+- Reduce unnecessary image regions
+- Focus on likely traffic sign areas
+- Improve processing efficiency
+
+Method:
+
+- Crop the right side of the image
+- Remove lower irrelevant regions
+
+Output:
+
+- ROI image
+
+---
+
+# STEP 2 — HSV Color Filtering
+
+Purpose:
+
+- Detect traffic sign colors
+- Separate signs from background
+
+Method:
+
+- Convert BGR image to HSV
+- Detect:
+  - Blue regions
+  - Red regions
+
+Output:
+
+- Blue binary mask
+- Red binary mask
+
+---
+
+# STEP 3 — Morphology + Area Filtering
+
+Purpose:
+
+- Clean noisy masks
+- Fill small holes
+- Remove tiny blobs
+
+Method:
+
+1. Morphological Closing
+2. Connected Component Analysis
+3. Area Filtering
+
+Important:
+
+Blue and red masks are processed separately before combining.
+
+Pipeline:
 
 ```text
-input_images/
+Blue Mask
+→ Morphology
+→ Area Filtering
+
+Red Mask
+→ Morphology
+→ Area Filtering
+
+Final Mask
+= Blue + Red
 ```
 
-Run a testing script:
+Output:
+
+- Clean binary mask
+
+---
+
+# STEP 4 — Contour Extraction
+
+Purpose:
+
+- Detect potential traffic sign objects
+
+Method:
+
+1. Find contours
+2. Apply contour filtering:
+   - Minimum area
+   - Position filtering
+   - Aspect ratio filtering
+3. Draw:
+   - Contours
+   - Bounding boxes
+
+Output:
+
+- Final detection visualization
+
+---
+
+# How to Run
+
+Run each testing file individually:
 
 ```bash
-python standalone_demo/test_step04_contour.py
+python test_step01_roi.py
 ```
 
-Outputs will be saved to:
+```bash
+python test_step02_hsv.py
+```
+
+```bash
+python test_step03_morphology.py
+```
+
+```bash
+python test_step04_contour.py
+```
+
+---
+
+# Output
+
+Generated outputs are saved inside:
 
 ```text
 output_images/
 ```
 
+The pipeline produces:
+
+- ROI visualizations
+- HSV masks
+- Morphology results
+- Filtered masks
+- Contour detections
+- Bounding boxes
+
 ---
 
-# Requirements
+# Technologies Used
 
-* Python 3.9+
-* OpenCV
-* NumPy
-* Matplotlib
-
----
-
-# Current Status
-
-Implemented:
-
-* ROI extraction
-* HSV filtering
-* Morphology cleanup
-* Semantic contour detection
-
-Planned:
-
-* Perspective rectification
-* Traffic sign alignment
-* OCR / text extraction
-* Classification improvements
-* Deep learning integration
+- Python
+- OpenCV
+- NumPy
+- Matplotlib
 
 ---
 
 # Notes
 
-This project intentionally focuses on classical Computer Vision techniques instead of deep learning in the early stages.
+This project uses a traditional Computer Vision approach instead of Deep Learning.
 
-The goal is to better understand:
+Detection quality depends on:
 
-* image preprocessing
-* contour behavior
-* morphology operations
-* geometric filtering
-* shape analysis
+- Lighting conditions
+- HSV thresholds
+- Morphology parameters
+- Camera angle
+- Traffic sign visibility
 
-before integrating more advanced models.
-
----
-
-# License
-
-This project is for educational and research purposes.
+This project is intended for educational and experimental purposes.
