@@ -1,49 +1,34 @@
 # Traffic Sign Alignment Pipeline
 
-A modular Computer Vision pipeline for traffic sign detection and perspective alignment using classical image processing techniques.
+A traditional Computer Vision pipeline for detecting and analyzing Vietnamese traffic signs using image processing techniques.
 
-This project focuses on:
-- Region of Interest (ROI) extraction
-- HSV color filtering
-- Morphological processing
-- Edge and contour detection
-- Shape analysis
-- Perspective rectification (homography)
+This project focuses on building a modular traffic sign detection pipeline step-by-step using:
 
-The pipeline is designed for educational and experimental purposes in Computer Vision.
+* ROI extraction
+* HSV color filtering
+* Morphological operations
+* Contour analysis
+* Polygon approximation
+* Semantic shape filtering
+
+The pipeline is designed mainly for experimentation, debugging, and understanding classical Computer Vision methods before moving into more advanced approaches.
 
 ---
 
 # Features
 
-- Modular step-by-step pipeline
-- Classical Computer Vision approach (no deep learning)
-- Easy debugging and visualization
-- Standalone testing scripts for each step
-- Batch image processing support
-- Perspective correction for traffic signs
+* Modular processing pipeline
+* Traditional Computer Vision workflow
+* HSV-based traffic sign color detection
+* Morphological noise reduction
+* Polygon approximation using contours
+* Semantic shape classification:
 
----
-
-# Current Pipeline
-
-```text
-Input Image
-    ↓
-STEP 1 — ROI Extraction
-    ↓
-STEP 2 — HSV Color Filtering
-    ↓
-STEP 3 — Morphology & Denoising
-    ↓
-STEP 4 — Edge & Contour Detection
-    ↓
-STEP 5 — Shape Analysis
-    ↓
-STEP 6 — Perspective Rectification
-    ↓
-STEP 7 — Image Enhancement
-```
+  * Triangle
+  * Rectangle
+  * Circle
+* Visualization for every processing step
+* Separate testing environment using standalone demo scripts
 
 ---
 
@@ -52,86 +37,156 @@ STEP 7 — Image Enhancement
 ```text
 traffic_sign_alignment/
 │
-├── config.py
-├── main.py
-├── README.md
-│
 ├── input_images/
-│   └── sign1.jpg
+│   └── sign images for testing
 │
 ├── output_images/
+│   └── generated outputs from each step
 │
 ├── standalone_demo/
 │   ├── test_step01_roi.py
 │   ├── test_step02_hsv_filter.py
 │   ├── test_step03_morphology.py
-│   └── test_step04_edge_contour.py
+│   └── test_step04_contour.py
 │
 ├── steps/
 │   ├── step01_roi.py
 │   ├── step02_hsv_filter.py
 │   ├── step03_morphology.py
-│   ├── step04_edge_contour.py
-│   ├── step05_shape_analysis.py
-│   ├── step06_rectify.py
-│   └── step07_enhance.py
+│   └── step04_contour.py
 │
-├── pipeline/
-│   └── processor.py
-│
-└── utils/
-    └── io.py
+├── README.md
+├── requirements.txt
+└── main.py
 ```
+
+---
+
+# Pipeline Overview
+
+## STEP 1 — ROI Extraction
+
+Simple heuristic ROI extraction using:
+
+* Right-side crop
+* Upper-region crop
+
+Goal:
+Reduce unnecessary background and focus on roadside traffic signs.
+
+---
+
+## STEP 2 — HSV Color Filtering
+
+Traffic sign color segmentation using HSV color space.
+
+Detected colors:
+
+* Blue traffic signs
+* Red traffic signs
+
+Techniques used:
+
+* Gaussian blur
+* HSV conversion
+* Color thresholding
+* Binary mask generation
+
+---
+
+## STEP 3 — Morphology + Area Filtering
+
+Mask cleanup and noise reduction.
+
+Techniques used:
+
+* Morphological closing
+* Connected component analysis
+* Area filtering
+
+Goal:
+Preserve meaningful traffic sign regions while removing small noise blobs.
+
+---
+
+## STEP 4 — Semantic Contour Filtering
+
+Traffic-sign-like shape detection using contour analysis.
+
+Techniques used:
+
+* Contour extraction
+* Polygon approximation
+* Circularity analysis
+* Aspect ratio filtering
+* Fill ratio filtering
+* Shape classification
+
+Supported shape types:
+
+* Triangle
+* Rectangle
+* Circle
 
 ---
 
 # Installation
 
-## 1. Clone repository
+## Clone repository
 
 ```bash
-git clone https://github.com/yourusername/traffic_sign_alignment.git
+git clone https://github.com/yourusername/traffic-sign-alignment.git
 
-cd traffic_sign_alignment
+cd traffic-sign-alignment
 ```
 
 ---
 
-## 2. Install dependencies
+## Create virtual environment
 
 ```bash
-pip install opencv-python numpy matplotlib
+python -m venv venv
+```
+
+Activate environment:
+
+### Windows
+
+```bash
+venv\Scripts\activate
+```
+
+### macOS / Linux
+
+```bash
+source venv/bin/activate
+```
+
+---
+
+## Install dependencies
+
+```bash
+pip install opencv-python matplotlib numpy
 ```
 
 ---
 
 # Usage
 
-## Run standalone demos
+Place traffic sign images inside:
 
-Used for debugging and visualizing each individual step.
-
-Example:
-
-```bash
-python standalone_demo/test_step01_roi.py
+```text
+input_images/
 ```
 
-or
+Run a testing script:
 
 ```bash
-python standalone_demo/test_step02_hsv_filter.py
+python standalone_demo/test_step04_contour.py
 ```
 
----
-
-## Run full pipeline
-
-```bash
-python main.py
-```
-
-Processed outputs will be saved inside:
+Outputs will be saved to:
 
 ```text
 output_images/
@@ -139,152 +194,50 @@ output_images/
 
 ---
 
-# Pipeline Steps
-
-## STEP 1 — ROI Extraction
-
-Goal:
-- Reduce unnecessary background
-- Focus on likely traffic sign regions
-
-Current method:
-- Right-side crop
-- Upper-region crop
-- Simple heuristic ROI
-
----
-
-## STEP 2 — HSV Color Filtering
-
-Goal:
-- Extract traffic sign colors
-
-Current targets:
-- Blue traffic signs
-- Red traffic signs
-
-Techniques:
-- RGB → HSV conversion
-- Color thresholding
-- Binary mask generation
-
----
-
-## STEP 3 — Morphology & Denoising
-
-Goal:
-- Remove noise from masks
-- Connect fragmented regions
-
-Techniques:
-- Morphological Closing
-
----
-
-## STEP 4 — Edge & Contour Detection
-
-Goal:
-- Detect candidate traffic sign regions
-
-Techniques:
-- Canny Edge Detection
-- Contour Extraction
-- Area filtering
-
----
-
-## STEP 5 — Shape Analysis
-
-Goal:
-- Determine whether a contour resembles a traffic sign
-
-Techniques:
-- Polygon approximation
-- Shape classification
-- Rectangle / Triangle / Circle detection
-- Geometric filtering
-
----
-
-## STEP 6 — Perspective Rectification
-
-Goal:
-- Align traffic signs into a front-facing view
-
-Techniques:
-- Corner extraction
-- Homography
-- Perspective transform
-- warpPerspective()
-
----
-
-## STEP 7 — Enhancement
-
-Goal:
-- Improve visual quality of aligned signs
-
-Possible techniques:
-- Sharpening
-- Contrast enhancement
-- Histogram equalization
-
----
-
-# Configuration
-
-Main configuration file:
-
-```text
-config.py
-```
-
-Example:
-
-```python
-ENABLED_STEPS = [
-    'roi',
-    'hsv_filter',
-    'morphology',
-    'edge_contour',
-    'shape_analysis',
-    'rectify',
-    'enhance'
-]
-```
-
----
-
 # Requirements
 
-- Python 3.11+
-- OpenCV
-- NumPy
-- Matplotlib
+* Python 3.9+
+* OpenCV
+* NumPy
+* Matplotlib
+
+---
+
+# Current Status
+
+Implemented:
+
+* ROI extraction
+* HSV filtering
+* Morphology cleanup
+* Semantic contour detection
+
+Planned:
+
+* Perspective rectification
+* Traffic sign alignment
+* OCR / text extraction
+* Classification improvements
+* Deep learning integration
 
 ---
 
 # Notes
 
-This project intentionally uses traditional Computer Vision techniques instead of deep learning models in order to:
-- better understand image processing fundamentals
-- visualize each processing stage
-- study geometric transformations and contour analysis
+This project intentionally focuses on classical Computer Vision techniques instead of deep learning in the early stages.
 
----
+The goal is to better understand:
 
-# Future Improvements
+* image preprocessing
+* contour behavior
+* morphology operations
+* geometric filtering
+* shape analysis
 
-Possible future upgrades:
-- Better ROI estimation
-- Night-condition robustness
-- Circular sign handling
-- Adaptive HSV thresholds
-- Lane detection integration
-- Machine learning classification
+before integrating more advanced models.
 
 ---
 
 # License
 
-MIT License
+This project is for educational and research purposes.
