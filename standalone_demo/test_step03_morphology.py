@@ -207,11 +207,6 @@ for file_name in image_files:
     # FINAL COMBINED MASK
     # ------------------------------------------------
 
-    closed_mask = cv2.add(
-        blue_closed,
-        red_closed
-    )
-
     filtered_mask = cv2.add(
         blue_filtered,
         red_filtered
@@ -222,12 +217,27 @@ for file_name in image_files:
     # ------------------------------------------------
 
     cv2.imwrite(
-        f'output_images/closed_{file_name}',
-        closed_mask
+        f'output_images/blue_closed_{file_name}',
+        blue_closed
     )
 
     cv2.imwrite(
-        f'output_images/filtered_{file_name}',
+        f'output_images/red_closed_{file_name}',
+        red_closed
+    )
+
+    cv2.imwrite(
+        f'output_images/blue_filtered_{file_name}',
+        blue_filtered
+    )
+
+    cv2.imwrite(
+        f'output_images/red_filtered_{file_name}',
+        red_filtered
+    )
+
+    cv2.imwrite(
+        f'output_images/final_filtered_{file_name}',
         filtered_mask
     )
 
@@ -237,28 +247,27 @@ for file_name in image_files:
 
     titles = [
         'ROI',
-        'Original Mask',
-        'After Closing',
-        'After Area Filtering'
+        'Blue Mask',
+        'Red Mask',
+        'Blue After Morphology',
+        'Red After Morphology',
+        'Final Combined Mask'
     ]
-
-    original_mask = cv2.add(
-        blue_mask,
-        red_mask
-    )
 
     images = [
         cv2.cvtColor(roi, cv2.COLOR_BGR2RGB),
-        original_mask,
-        closed_mask,
+        blue_mask,
+        red_mask,
+        blue_filtered,
+        red_filtered,
         filtered_mask
     ]
 
-    plt.figure(figsize=(18, 5))
+    plt.figure(figsize=(24, 5))
 
-    for i in range(4):
+    for i in range(6):
 
-        plt.subplot(1, 4, i + 1)
+        plt.subplot(1, 6, i + 1)
 
         if i == 0:
 
