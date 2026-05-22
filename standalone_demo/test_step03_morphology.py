@@ -1,5 +1,3 @@
-# steps/step03_morphology.py
-
 import os
 import cv2
 import numpy as np
@@ -7,7 +5,22 @@ from matplotlib import pyplot as plt
 
 
 # ---------------------------------------------------
-# STEP 1 — SIMPLE HEURISTIC ROI
+# STEP 3 — AREA FILTERING EXPERIMENT
+#
+# Compare:
+# - min_area = 50
+# - min_area = 100
+# - min_area = 200
+#
+# Using:
+# - Adaptive HSV
+# - Morphology Closing (5x5)
+# - Separate Blue / Red Morphology
+# ---------------------------------------------------
+
+
+# ---------------------------------------------------
+# ROI EXTRACTION
 # ---------------------------------------------------
 
 def extract_roi(image):
@@ -28,14 +41,10 @@ def extract_roi(image):
 
 
 # ---------------------------------------------------
-# STEP 2 — HSV FILTERING
+# HSV FILTERING
 # ---------------------------------------------------
 
 def hsv_filter(roi):
-
-    # ------------------------------------------------
-    # Blur before HSV
-    # ------------------------------------------------
 
     blurred = cv2.GaussianBlur(
         roi,
@@ -43,9 +52,12 @@ def hsv_filter(roi):
         0
     )
 
-    # ------------------------------------------------
-    # Convert BGR → HSV
-    # ------------------------------------------------
+    gray = cv2.cvtColor(
+        blurred,
+        cv2.COLOR_BGR2GRAY
+    )
+
+    brightness = np.mean(gray)
 
     hsv = cv2.cvtColor(
         blurred,
@@ -53,11 +65,38 @@ def hsv_filter(roi):
     )
 
     # ------------------------------------------------
-    # BLUE MASK
+    # DAY / NIGHT SWITCH
     # ------------------------------------------------
 
-    lower_blue = np.array([100, 120, 70])
-    upper_blue = np.array([130, 255, 255])
+    if brightness < 130:
+
+        scene_type = "NIGHT"
+
+        lower_blue = np.array([90, 50, 50])
+        upper_blue = np.array([135, 255, 255])
+
+        lower_red1 = np.array([0, 160, 70])
+        upper_red1 = np.array([10, 255, 255])
+
+        lower_red2 = np.array([170, 160, 70])
+        upper_red2 = np.array([180, 255, 255])
+
+    else:
+
+        scene_type = "DAY"
+
+        lower_blue = np.array([100, 120, 70])
+        upper_blue = np.array([130, 255, 255])
+
+        lower_red1 = np.array([0, 140, 80])
+        upper_red1 = np.array([10, 255, 255])
+
+        lower_red2 = np.array([170, 140, 80])
+        upper_red2 = np.array([180, 255, 255])
+
+    # ------------------------------------------------
+    # BLUE MASK
+    # ------------------------------------------------
 
     blue_mask = cv2.inRange(
         hsv,
@@ -68,12 +107,6 @@ def hsv_filter(roi):
     # ------------------------------------------------
     # RED MASK
     # ------------------------------------------------
-
-    lower_red1 = np.array([0, 140, 80])
-    upper_red1 = np.array([10, 255, 255])
-
-    lower_red2 = np.array([170, 140, 80])
-    upper_red2 = np.array([180, 255, 255])
 
     red_mask1 = cv2.inRange(
         hsv,
@@ -92,23 +125,18 @@ def hsv_filter(roi):
         red_mask2
     )
 
-    return blue_mask, red_mask
+    return blue_mask, red_mask, brightness, scene_type
 
 
 # ---------------------------------------------------
-# STEP 3 — MORPHOLOGY + AREA FILTERING
+# MORPHOLOGY CLOSING
 # ---------------------------------------------------
 
-def morphology_filter(mask):
+def apply_closing(mask):
 
-    # ------------------------------------------------
-    # MORPHOLOGICAL CLOSING
-    # Fill small holes
-    # ------------------------------------------------
-
-    kernel = cv2.getStructuringElement(
-        cv2.MORPH_RECT,
-        (7, 7)
+    kernel = np.ones(
+        (5, 5),
+        np.uint8
     )
 
     closed = cv2.morphologyEx(
@@ -117,52 +145,51 @@ def morphology_filter(mask):
         kernel
     )
 
-    # ------------------------------------------------
-    # CONNECTED COMPONENT ANALYSIS
-    # Remove tiny noise blobs
-    # ------------------------------------------------
+    return closed
 
-    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
-        closed,
-        connectivity=8
+
+# ---------------------------------------------------
+# AREA FILTERING
+# ---------------------------------------------------
+
+def area_filter(mask, min_area):
+
+    contours, _ = cv2.findContours(
+        mask,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE
     )
 
-    filtered = np.zeros_like(closed)
+    filtered = np.zeros_like(mask)
 
-    # ------------------------------------------------
-    # Keep only large enough regions
-    # ------------------------------------------------
+    kept_contours = 0
 
-    MIN_AREA = 120
+    for cnt in contours:
 
-    for i in range(1, num_labels):
+        area = cv2.contourArea(cnt)
 
-        area = stats[i, cv2.CC_STAT_AREA]
+        if area >= min_area:
 
-        if area > MIN_AREA:
+            cv2.drawContours(
+                filtered,
+                [cnt],
+                -1,
+                255,
+                thickness=cv2.FILLED
+            )
 
-            filtered[labels == i] = 255
+            kept_contours += 1
 
-    return closed, filtered
+    return filtered, kept_contours
 
 
 # ---------------------------------------------------
-# CREATE OUTPUT FOLDER
+# PROCESS IMAGES
 # ---------------------------------------------------
-
-os.makedirs(
-    'output_images',
-    exist_ok=True
-)
 
 input_folder = 'input_images'
 
 image_files = os.listdir(input_folder)
-
-
-# ---------------------------------------------------
-# PROCESS ALL IMAGES
-# ---------------------------------------------------
 
 for file_name in image_files:
 
@@ -179,113 +206,123 @@ for file_name in image_files:
         continue
 
     # ------------------------------------------------
-    # STEP 1 — ROI
+    # ROI
     # ------------------------------------------------
 
     roi = extract_roi(img)
 
     # ------------------------------------------------
-    # STEP 2 — HSV FILTERING
+    # HSV
     # ------------------------------------------------
 
-    blue_mask, red_mask = hsv_filter(roi)
+    blue_mask, red_mask, brightness, scene_type = hsv_filter(roi)
 
     # ------------------------------------------------
-    # STEP 3 — MORPHOLOGY
-    # Process each color separately
+    # MORPHOLOGY
     # ------------------------------------------------
 
-    blue_closed, blue_filtered = morphology_filter(
-        blue_mask
-    )
+    blue_closed = apply_closing(blue_mask)
 
-    red_closed, red_filtered = morphology_filter(
-        red_mask
-    )
+    red_closed = apply_closing(red_mask)
 
-    # ------------------------------------------------
-    # FINAL COMBINED MASK
-    # ------------------------------------------------
-
-    filtered_mask = cv2.add(
-        blue_filtered,
-        red_filtered
-    )
-
-    # ------------------------------------------------
-    # SAVE OUTPUTS
-    # ------------------------------------------------
-
-    cv2.imwrite(
-        f'output_images/blue_closed_{file_name}',
-        blue_closed
-    )
-
-    cv2.imwrite(
-        f'output_images/red_closed_{file_name}',
+    combined = cv2.add(
+        blue_closed,
         red_closed
     )
 
-    cv2.imwrite(
-        f'output_images/blue_filtered_{file_name}',
-        blue_filtered
-    )
+    # ------------------------------------------------
+    # TEST AREA THRESHOLDS
+    # ------------------------------------------------
 
-    cv2.imwrite(
-        f'output_images/red_filtered_{file_name}',
-        red_filtered
-    )
+    thresholds = [50, 100, 200]
 
-    cv2.imwrite(
-        f'output_images/final_filtered_{file_name}',
-        filtered_mask
-    )
+    results = []
+
+    contour_counts = []
+
+    for threshold in thresholds:
+
+        filtered, kept = area_filter(
+            combined,
+            threshold
+        )
+
+        results.append(filtered)
+
+        contour_counts.append(kept)
+
+        print("\n-----------------------------------")
+        print(f"File              : {file_name}")
+        print(f"Scene Type        : {scene_type}")
+        print(f"Brightness        : {brightness:.2f}")
+        print(f"Min Area          : {threshold}")
+        print(f"Contours Kept     : {kept}")
+        print("-----------------------------------")
 
     # ------------------------------------------------
     # VISUALIZATION
     # ------------------------------------------------
 
-    titles = [
-        'ROI',
-        'Blue Mask',
-        'Red Mask',
-        'Blue After Morphology',
-        'Red After Morphology',
-        'Final Combined Mask'
-    ]
+    plt.figure(figsize=(20, 5))
 
-    images = [
-        cv2.cvtColor(roi, cv2.COLOR_BGR2RGB),
-        blue_mask,
-        red_mask,
-        blue_filtered,
-        red_filtered,
-        filtered_mask
-    ]
+    # ROI
+    plt.subplot(1, 4, 1)
 
-    plt.figure(figsize=(24, 5))
+    plt.imshow(
+        cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
+    )
 
-    for i in range(6):
+    plt.title(f'ROI ({scene_type})')
 
-        plt.subplot(1, 6, i + 1)
+    plt.axis('off')
 
-        if i == 0:
+    # Threshold 50
+    plt.subplot(1, 4, 2)
 
-            plt.imshow(images[i])
+    plt.imshow(
+        results[0],
+        cmap='gray'
+    )
 
-        else:
+    plt.title(
+        f'Area ≥ 50\nContours: {contour_counts[0]}'
+    )
 
-            plt.imshow(
-                images[i],
-                cmap='gray'
-            )
+    plt.axis('off')
 
-        plt.title(titles[i])
+    # Threshold 100
+    plt.subplot(1, 4, 3)
 
-        plt.axis('off')
+    plt.imshow(
+        results[1],
+        cmap='gray'
+    )
+
+    plt.title(
+        f'Area ≥ 100\nContours: {contour_counts[1]}'
+    )
+
+    plt.axis('off')
+
+    # Threshold 200
+    plt.subplot(1, 4, 4)
+
+    plt.imshow(
+        results[2],
+        cmap='gray'
+    )
+
+    plt.title(
+        f'Area ≥ 200\nContours: {contour_counts[2]}'
+    )
+
+    plt.axis('off')
+
+    plt.suptitle(
+        f'{file_name} | Brightness = {brightness:.2f}',
+        fontsize=14
+    )
 
     plt.tight_layout()
 
     plt.show()
-
-    print(f"Processed: {file_name}")

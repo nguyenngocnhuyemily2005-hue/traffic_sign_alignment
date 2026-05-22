@@ -5,11 +5,11 @@ from matplotlib import pyplot as plt
 
 
 # ---------------------------------------------------
-# STEP 2 — HSV FILTERING
+# STEP 2 — ADAPTIVE HSV FILTERING
 # Using:
-# - HSV color space
-# - Blue sign detection
-# - Red sign detection
+# - Day / Night brightness estimation
+# - Adaptive HSV thresholds
+# - Separate blue / red masks
 # ---------------------------------------------------
 
 def hsv_filter(roi):
@@ -25,6 +25,17 @@ def hsv_filter(roi):
     )
 
     # ------------------------------------------------
+    # Estimate brightness
+    # ------------------------------------------------
+
+    gray = cv2.cvtColor(
+        blurred,
+        cv2.COLOR_BGR2GRAY
+    )
+
+    brightness = np.mean(gray)
+
+    # ------------------------------------------------
     # Convert BGR → HSV
     # ------------------------------------------------
 
@@ -34,11 +45,56 @@ def hsv_filter(roi):
     )
 
     # ------------------------------------------------
-    # BLUE MASK
+    # DAY / NIGHT DECISION
     # ------------------------------------------------
 
-    lower_blue = np.array([100, 120, 70])
-    upper_blue = np.array([130, 255, 255])
+    if brightness < 130:
+
+        scene_type = "NIGHT"
+
+        # --------------------------------------------
+        # NIGHTTIME BLUE THRESHOLDS
+        # Lower S and V to recover weak blue regions
+        # --------------------------------------------
+
+        lower_blue = np.array([90, 50, 50])
+        upper_blue = np.array([135, 255, 255])
+
+        # --------------------------------------------
+        # NIGHTTIME RED THRESHOLDS
+        # Slightly tighter to reduce reflections
+        # --------------------------------------------
+
+        lower_red1 = np.array([0, 160, 70])
+        upper_red1 = np.array([10, 255, 255])
+
+        lower_red2 = np.array([170, 160, 70])
+        upper_red2 = np.array([180, 255, 255])
+
+    else:
+
+        scene_type = "DAY"
+
+        # --------------------------------------------
+        # DAYTIME BLUE THRESHOLDS
+        # --------------------------------------------
+
+        lower_blue = np.array([100, 120, 70])
+        upper_blue = np.array([130, 255, 255])
+
+        # --------------------------------------------
+        # DAYTIME RED THRESHOLDS
+        # --------------------------------------------
+
+        lower_red1 = np.array([0, 140, 80])
+        upper_red1 = np.array([10, 255, 255])
+
+        lower_red2 = np.array([170, 140, 80])
+        upper_red2 = np.array([180, 255, 255])
+
+    # ------------------------------------------------
+    # BLUE MASK
+    # ------------------------------------------------
 
     blue_mask = cv2.inRange(
         hsv,
@@ -49,12 +105,6 @@ def hsv_filter(roi):
     # ------------------------------------------------
     # RED MASK
     # ------------------------------------------------
-
-    lower_red1 = np.array([0, 140, 80])
-    upper_red1 = np.array([10, 255, 255])
-
-    lower_red2 = np.array([170, 140, 80])
-    upper_red2 = np.array([180, 255, 255])
 
     red_mask1 = cv2.inRange(
         hsv,
@@ -68,30 +118,41 @@ def hsv_filter(roi):
         upper_red2
     )
 
-    # ------------------------------------------------
-    # Combine red masks
-    # ------------------------------------------------
-
     red_mask = cv2.add(
         red_mask1,
         red_mask2
     )
 
-    return blue_mask, red_mask
+    # ------------------------------------------------
+    # PRINT DEBUG INFO
+    # ------------------------------------------------
+
+    print("\n-----------------------------------")
+    print(f"Scene Type : {scene_type}")
+    print(f"Brightness : {brightness:.2f}")
+
+    print("\nBlue Thresholds:")
+    print(f"Lower : {lower_blue}")
+    print(f"Upper : {upper_blue}")
+
+    print("\nRed Thresholds:")
+    print(f"Lower Red 1 : {lower_red1}")
+    print(f"Upper Red 1 : {upper_red1}")
+    print(f"Lower Red 2 : {lower_red2}")
+    print(f"Upper Red 2 : {upper_red2}")
+
+    print("-----------------------------------")
+
+    return blue_mask, red_mask, brightness, scene_type
 
 
 # ---------------------------------------------------
 # SIMPLE ROI FUNCTION
-# (reuse from step01)
 # ---------------------------------------------------
 
 def extract_roi(image):
 
     h, w = image.shape[:2]
-
-    # ------------------------------------------------
-    # ROI boundaries
-    # ------------------------------------------------
 
     # Keep right-half region
     x_start = int(w * 0.50)
@@ -99,10 +160,6 @@ def extract_roi(image):
     # Keep most upper area
     y_start = 0
     y_end = int(h * 0.85)
-
-    # ------------------------------------------------
-    # Final ROI
-    # ------------------------------------------------
 
     roi = image[
         y_start:y_end,
@@ -138,22 +195,25 @@ for file_name in image_files:
 
     if img is None:
 
-        print(f"Không load được ảnh: {file_name}")
+        print(f"Cannot load image: {file_name}")
         continue
 
     # ---------------------------------------------
     # STEP 1 — ROI
     # ---------------------------------------------
+
     roi = extract_roi(img)
 
     # ---------------------------------------------
     # STEP 2 — HSV FILTERING
     # ---------------------------------------------
-    blue_mask, red_mask = hsv_filter(roi)
+
+    blue_mask, red_mask, brightness, scene_type = hsv_filter(roi)
 
     # ---------------------------------------------
     # SAVE OUTPUTS
     # ---------------------------------------------
+
     cv2.imwrite(
         f'output_images/blue_mask_{file_name}',
         blue_mask
@@ -167,8 +227,9 @@ for file_name in image_files:
     # ---------------------------------------------
     # VISUALIZATION
     # ---------------------------------------------
+
     titles = [
-        'ROI',
+        f'ROI ({scene_type})',
         'Blue Mask',
         'Red Mask',
     ]
@@ -194,8 +255,13 @@ for file_name in image_files:
 
         plt.axis('off')
 
+    plt.suptitle(
+        f'{file_name} | Brightness = {brightness:.2f}',
+        fontsize=14
+    )
+
     plt.tight_layout()
 
     plt.show()
 
-    print(f"Processed: {file_name}")
+    print(f"\nProcessed: {file_name}")
