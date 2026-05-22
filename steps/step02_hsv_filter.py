@@ -1,22 +1,15 @@
-# steps/step02_hsv_filter.py
-
 import cv2
 import numpy as np
 
 
 # ---------------------------------------------------
 # STEP 2 — HSV FILTERING
-# Using:
-# - HSV color space
-# - Gaussian blur
-# - Blue sign detection
-# - Red sign detection
 # ---------------------------------------------------
 
 def hsv_filter(roi):
 
     # ------------------------------------------------
-    # Blur to stabilize HSV
+    # GAUSSIAN BLUR
     # ------------------------------------------------
 
     blurred = cv2.GaussianBlur(
@@ -26,7 +19,18 @@ def hsv_filter(roi):
     )
 
     # ------------------------------------------------
-    # Convert BGR → HSV
+    # BRIGHTNESS ESTIMATION
+    # ------------------------------------------------
+
+    gray = cv2.cvtColor(
+        blurred,
+        cv2.COLOR_BGR2GRAY
+    )
+
+    brightness = np.mean(gray)
+
+    # ------------------------------------------------
+    # HSV CONVERSION
     # ------------------------------------------------
 
     hsv = cv2.cvtColor(
@@ -35,11 +39,38 @@ def hsv_filter(roi):
     )
 
     # ------------------------------------------------
-    # BLUE MASK
+    # DAY / NIGHT ADAPTIVE THRESHOLDS
     # ------------------------------------------------
 
-    lower_blue = np.array([100, 120, 70])
-    upper_blue = np.array([130, 255, 255])
+    if brightness < 130:
+
+        scene_type = "NIGHT"
+
+        lower_blue = np.array([90, 50, 50])
+        upper_blue = np.array([135, 255, 255])
+
+        lower_red1 = np.array([0, 160, 70])
+        upper_red1 = np.array([10, 255, 255])
+
+        lower_red2 = np.array([170, 160, 70])
+        upper_red2 = np.array([180, 255, 255])
+
+    else:
+
+        scene_type = "DAY"
+
+        lower_blue = np.array([100, 120, 70])
+        upper_blue = np.array([130, 255, 255])
+
+        lower_red1 = np.array([0, 140, 80])
+        upper_red1 = np.array([10, 255, 255])
+
+        lower_red2 = np.array([170, 140, 80])
+        upper_red2 = np.array([180, 255, 255])
+
+    # ------------------------------------------------
+    # BLUE MASK
+    # ------------------------------------------------
 
     blue_mask = cv2.inRange(
         hsv,
@@ -50,12 +81,6 @@ def hsv_filter(roi):
     # ------------------------------------------------
     # RED MASK
     # ------------------------------------------------
-
-    lower_red1 = np.array([0, 140, 80])
-    upper_red1 = np.array([10, 255, 255])
-
-    lower_red2 = np.array([170, 140, 80])
-    upper_red2 = np.array([180, 255, 255])
 
     red_mask1 = cv2.inRange(
         hsv,
@@ -69,13 +94,14 @@ def hsv_filter(roi):
         upper_red2
     )
 
-    # ------------------------------------------------
-    # Combine red masks
-    # ------------------------------------------------
-
     red_mask = cv2.add(
         red_mask1,
         red_mask2
     )
 
-    return blue_mask, red_mask
+    return (
+        blue_mask,
+        red_mask,
+        brightness,
+        scene_type
+    )

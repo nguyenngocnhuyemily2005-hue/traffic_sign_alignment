@@ -1,23 +1,16 @@
-# steps/step03_morphology.py
-
 import cv2
 import numpy as np
 
 
 # ---------------------------------------------------
-# STEP 3 — MORPHOLOGY + AREA FILTERING
+# STEP 3 — MORPHOLOGY
 # ---------------------------------------------------
 
-def morphology_filter(mask):
+def apply_closing(mask):
 
-    # ------------------------------------------------
-    # MORPHOLOGICAL CLOSING
-    # Fill small holes
-    # ------------------------------------------------
-
-    kernel = cv2.getStructuringElement(
-        cv2.MORPH_RECT,
-        (7, 7)
+    kernel = np.ones(
+        (5, 5),
+        np.uint8
     )
 
     closed = cv2.morphologyEx(
@@ -26,30 +19,39 @@ def morphology_filter(mask):
         kernel
     )
 
-    # ------------------------------------------------
-    # CONNECTED COMPONENT ANALYSIS
-    # Remove tiny noise blobs
-    # ------------------------------------------------
+    return closed
 
-    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
-        closed,
-        connectivity=8
+
+# ---------------------------------------------------
+# AREA FILTERING
+# ---------------------------------------------------
+
+def area_filter(mask, min_area=100):
+
+    contours, _ = cv2.findContours(
+        mask,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE
     )
 
-    filtered = np.zeros_like(closed)
+    filtered = np.zeros_like(mask)
 
-    # ------------------------------------------------
-    # Keep only large enough regions
-    # ------------------------------------------------
+    kept_contours = []
 
-    MIN_AREA = 120
+    for cnt in contours:
 
-    for i in range(1, num_labels):
+        area = cv2.contourArea(cnt)
 
-        area = stats[i, cv2.CC_STAT_AREA]
+        if area >= min_area:
 
-        if area > MIN_AREA:
+            cv2.drawContours(
+                filtered,
+                [cnt],
+                -1,
+                255,
+                thickness=cv2.FILLED
+            )
 
-            filtered[labels == i] = 255
+            kept_contours.append(cnt)
 
-    return filtered
+    return filtered, kept_contours

@@ -1,11 +1,12 @@
 import cv2
+import numpy as np
 
 
-# ===================================================
+# ---------------------------------------------------
 # STEP 4 — CONTOUR EXTRACTION
-# ===================================================
+# ---------------------------------------------------
 
-def extract_contours(mask, roi):
+def extract_contours(mask):
 
     contours, _ = cv2.findContours(
         mask,
@@ -13,59 +14,20 @@ def extract_contours(mask, roi):
         cv2.CHAIN_APPROX_SIMPLE
     )
 
-    output = roi.copy()
+    return contours
 
-    detected = 0
 
-    roi_h, roi_w = roi.shape[:2]
+# ---------------------------------------------------
+# DRAW CONTOURS + BOUNDING BOXES
+# ---------------------------------------------------
+
+def draw_contours(image, contours):
+
+    output = image.copy()
 
     for cnt in contours:
 
-        area = cv2.contourArea(cnt)
-
-        # ------------------------------------------------
-        # AREA FILTER
-        # ------------------------------------------------
-
-        if area < 250:
-            continue
-
-        # ------------------------------------------------
-        # BOUNDING BOX
-        # ------------------------------------------------
-
-        x, y, w, h = cv2.boundingRect(cnt)
-
-        if h == 0:
-            continue
-
-        aspect_ratio = w / float(h)
-
-        # ------------------------------------------------
-        # POSITION FILTER
-        # ------------------------------------------------
-
-        center_x = x + w // 2
-        center_y = y + h // 2
-
-        if center_y > roi_h * 0.90:
-            continue
-
-        if center_x < roi_w * 0.10:
-            continue
-
-        # ------------------------------------------------
-        # REMOVE THIN OBJECTS
-        # ------------------------------------------------
-
-        if aspect_ratio < 0.35:
-            continue
-
-        # ------------------------------------------------
-        # DRAW CONTOUR
-        # ------------------------------------------------
-
-        detected += 1
+        # Draw contour
 
         cv2.drawContours(
             output,
@@ -75,9 +37,9 @@ def extract_contours(mask, roi):
             2
         )
 
-        # ------------------------------------------------
-        # DRAW BOUNDING BOX
-        # ------------------------------------------------
+        # Bounding box
+
+        x, y, w, h = cv2.boundingRect(cnt)
 
         cv2.rectangle(
             output,
@@ -87,4 +49,4 @@ def extract_contours(mask, roi):
             2
         )
 
-    return output, detected
+    return output

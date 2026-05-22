@@ -1,26 +1,32 @@
-# config.py
-# Configuration settings for the Traffic Sign Alignment Pipeline
+# ---------------------------------------------------
+# CONFIGURATION
+# ---------------------------------------------------
 
-import os
+INPUT_DIR = 'input_images'
 
-# Paths
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-INPUT_DIR = os.path.join(PROJECT_ROOT, 'input_images', 'images')
-LABELS_DIR = os.path.join(PROJECT_ROOT, 'input_images', 'labels')
-OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'output_images')
+OUTPUT_DIR = 'output_images'
 
-# Processing parameters
-DEFAULT_IMAGE_SIZE = (224, 224)
-SHARPEN_FACTOR = 1.5
-ENHANCE_CONTRAST = 1.2
 
-# Pipeline steps
-ENABLED_STEPS = [
-    'roi',
-    'hsv_filter',
-    'morphology',
-    'edge_contour',
-    'shape_analysis',
-    'rectify',
-    'enhance'
-]
+# ---------------------------------------------------
+# ROI SETTINGS
+# ---------------------------------------------------
+
+ROI_X_START_RATIO = 0.50
+
+ROI_Y_END_RATIO = 0.85
+
+
+# ---------------------------------------------------
+# HSV SETTINGS
+# ---------------------------------------------------
+
+DAY_NIGHT_THRESHOLD = 130
+
+
+# ---------------------------------------------------
+# MORPHOLOGY SETTINGS
+# ---------------------------------------------------
+
+KERNEL_SIZE = 5
+
+MIN_AREA = 100

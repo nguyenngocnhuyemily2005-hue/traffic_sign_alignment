@@ -4,20 +4,23 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-# ===================================================
-# STEP 4 — CONTOUR EXTRACTION
+# ---------------------------------------------------
+# STEP 4 — CONTOUR COUNT COMPARISON
 #
-# Pipeline:
-# STEP 1 → ROI
-# STEP 2 → HSV filtering
-# STEP 3 → Morphology + Area filtering
-# STEP 4 → Contour extraction
-# ===================================================
+# Compare contour counts across:
+# - Raw HSV mask
+# - After morphology
+# - After area filtering
+#
+# Goal:
+# Show how preprocessing stabilizes
+# contour extraction progressively.
+# ---------------------------------------------------
 
 
-# ===================================================
-# STEP 1 — SIMPLE ROI
-# ===================================================
+# ---------------------------------------------------
+# ROI EXTRACTION
+# ---------------------------------------------------
 
 def extract_roi(image):
 
@@ -26,7 +29,6 @@ def extract_roi(image):
     x_start = int(w * 0.50)
 
     y_start = 0
-
     y_end = int(h * 0.85)
 
     roi = image[
@@ -37,9 +39,9 @@ def extract_roi(image):
     return roi
 
 
-# ===================================================
-# STEP 2 — HSV FILTERING
-# ===================================================
+# ---------------------------------------------------
+# HSV FILTERING
+# ---------------------------------------------------
 
 def hsv_filter(roi):
 
@@ -49,17 +51,51 @@ def hsv_filter(roi):
         0
     )
 
+    gray = cv2.cvtColor(
+        blurred,
+        cv2.COLOR_BGR2GRAY
+    )
+
+    brightness = np.mean(gray)
+
     hsv = cv2.cvtColor(
         blurred,
         cv2.COLOR_BGR2HSV
     )
 
     # ------------------------------------------------
-    # BLUE MASK
+    # DAY / NIGHT SWITCH
     # ------------------------------------------------
 
-    lower_blue = np.array([100, 120, 70])
-    upper_blue = np.array([130, 255, 255])
+    if brightness < 130:
+
+        scene_type = "NIGHT"
+
+        lower_blue = np.array([90, 50, 50])
+        upper_blue = np.array([135, 255, 255])
+
+        lower_red1 = np.array([0, 160, 70])
+        upper_red1 = np.array([10, 255, 255])
+
+        lower_red2 = np.array([170, 160, 70])
+        upper_red2 = np.array([180, 255, 255])
+
+    else:
+
+        scene_type = "DAY"
+
+        lower_blue = np.array([100, 120, 70])
+        upper_blue = np.array([130, 255, 255])
+
+        lower_red1 = np.array([0, 140, 80])
+        upper_red1 = np.array([10, 255, 255])
+
+        lower_red2 = np.array([170, 140, 80])
+        upper_red2 = np.array([180, 255, 255])
+
+    # ------------------------------------------------
+    # BLUE MASK
+    # ------------------------------------------------
 
     blue_mask = cv2.inRange(
         hsv,
@@ -70,12 +106,6 @@ def hsv_filter(roi):
     # ------------------------------------------------
     # RED MASK
     # ------------------------------------------------
-
-    lower_red1 = np.array([0, 140, 80])
-    upper_red1 = np.array([10, 255, 255])
-
-    lower_red2 = np.array([170, 140, 80])
-    upper_red2 = np.array([180, 255, 255])
 
     red_mask1 = cv2.inRange(
         hsv,
@@ -94,23 +124,18 @@ def hsv_filter(roi):
         red_mask2
     )
 
-    return blue_mask, red_mask
+    return blue_mask, red_mask, brightness, scene_type
 
 
-# ===================================================
-# STEP 3 — MORPHOLOGY
-# ===================================================
+# ---------------------------------------------------
+# MORPHOLOGY
+# ---------------------------------------------------
 
-def clean_mask(mask):
+def apply_closing(mask):
 
-    # ------------------------------------------------
-    # Morphological Closing
-    # Fill small holes inside signs
-    # ------------------------------------------------
-
-    kernel = cv2.getStructuringElement(
-        cv2.MORPH_RECT,
-        (7, 7)
+    kernel = np.ones(
+        (5, 5),
+        np.uint8
     )
 
     closed = cv2.morphologyEx(
@@ -119,35 +144,14 @@ def clean_mask(mask):
         kernel
     )
 
-    # ------------------------------------------------
-    # AREA FILTERING
-    # ------------------------------------------------
-
-    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
-        closed,
-        connectivity=8
-    )
-
-    filtered = np.zeros_like(closed)
-
-    MIN_AREA = 120
-
-    for i in range(1, num_labels):
-
-        area = stats[i, cv2.CC_STAT_AREA]
-
-        if area > MIN_AREA:
-
-            filtered[labels == i] = 255
-
-    return filtered
+    return closed
 
 
-# ===================================================
-# STEP 4 — CONTOUR EXTRACTION
-# ===================================================
+# ---------------------------------------------------
+# AREA FILTERING
+# ---------------------------------------------------
 
-def extract_contours(mask, roi):
+def area_filter(mask, min_area=100):
 
     contours, _ = cv2.findContours(
         mask,
@@ -155,96 +159,51 @@ def extract_contours(mask, roi):
         cv2.CHAIN_APPROX_SIMPLE
     )
 
-    output = roi.copy()
+    filtered = np.zeros_like(mask)
 
-    detected = 0
-
-    roi_h, roi_w = roi.shape[:2]
+    kept_contours = []
 
     for cnt in contours:
 
         area = cv2.contourArea(cnt)
 
-        # ------------------------------------------------
-        # AREA FILTER
-        # ------------------------------------------------
+        if area >= min_area:
 
-        if area < 250:
-            continue
+            cv2.drawContours(
+                filtered,
+                [cnt],
+                -1,
+                255,
+                thickness=cv2.FILLED
+            )
 
-        # ------------------------------------------------
-        # BOUNDING BOX
-        # ------------------------------------------------
+            kept_contours.append(cnt)
 
-        x, y, w, h = cv2.boundingRect(cnt)
-
-        if h == 0:
-            continue
-
-        aspect_ratio = w / float(h)
-
-        # ------------------------------------------------
-        # POSITION FILTER
-        # ------------------------------------------------
-
-        center_x = x + w // 2
-        center_y = y + h // 2
-
-        if center_y > roi_h * 0.90:
-            continue
-
-        if center_x < roi_w * 0.10:
-            continue
-
-        # ------------------------------------------------
-        # REMOVE THIN OBJECTS
-        # ------------------------------------------------
-
-        if aspect_ratio < 0.35:
-            continue
-
-        # ------------------------------------------------
-        # DRAW CONTOUR
-        # ------------------------------------------------
-
-        detected += 1
-
-        cv2.drawContours(
-            output,
-            [cnt],
-            -1,
-            (0, 255, 0),
-            2
-        )
-
-        # ------------------------------------------------
-        # DRAW BOUNDING BOX
-        # ------------------------------------------------
-
-        cv2.rectangle(
-            output,
-            (x, y),
-            (x + w, y + h),
-            (255, 0, 0),
-            2
-        )
-
-    return output, detected
+    return filtered, kept_contours
 
 
-# ===================================================
-# MAIN
-# ===================================================
+# ---------------------------------------------------
+# COUNT CONTOURS
+# ---------------------------------------------------
 
-os.makedirs(
-    'output_images',
-    exist_ok=True
-)
+def count_contours(mask):
+
+    contours, _ = cv2.findContours(
+        mask,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE
+    )
+
+    return len(contours)
+
+
+# ---------------------------------------------------
+# PROCESS IMAGES
+# ---------------------------------------------------
 
 input_folder = 'input_images'
 
 image_files = os.listdir(input_folder)
-
 
 for file_name in image_files:
 
@@ -257,100 +216,132 @@ for file_name in image_files:
 
     if img is None:
 
-        print(f"Cannot load: {file_name}")
-
+        print(f"Cannot load image: {file_name}")
         continue
 
-    # ===================================================
-    # STEP 1 — ROI
-    # ===================================================
+    # ------------------------------------------------
+    # ROI
+    # ------------------------------------------------
 
     roi = extract_roi(img)
 
-    # ===================================================
-    # STEP 2 — HSV
-    # ===================================================
+    # ------------------------------------------------
+    # HSV
+    # ------------------------------------------------
 
-    blue_mask, red_mask = hsv_filter(roi)
+    blue_mask, red_mask, brightness, scene_type = hsv_filter(roi)
 
-    # ===================================================
-    # STEP 3 — MORPHOLOGY
-    # ===================================================
-
-    blue_clean = clean_mask(blue_mask)
-
-    red_clean = clean_mask(red_mask)
-
-    final_mask = cv2.add(
-        blue_clean,
-        red_clean
+    raw_combined = cv2.add(
+        blue_mask,
+        red_mask
     )
 
-    # ===================================================
-    # STEP 4 — CONTOURS
-    # ===================================================
+    # ------------------------------------------------
+    # CONTOUR COUNT — RAW HSV
+    # ------------------------------------------------
 
-    contour_output, detected = extract_contours(
-        final_mask,
-        roi
+    raw_count = count_contours(raw_combined)
+
+    # ------------------------------------------------
+    # MORPHOLOGY
+    # ------------------------------------------------
+
+    blue_closed = apply_closing(blue_mask)
+
+    red_closed = apply_closing(red_mask)
+
+    morphology_combined = cv2.add(
+        blue_closed,
+        red_closed
     )
 
-    # ===================================================
-    # SAVE OUTPUT
-    # ===================================================
+    # ------------------------------------------------
+    # CONTOUR COUNT — MORPHOLOGY
+    # ------------------------------------------------
 
-    cv2.imwrite(
-        f'output_images/contours_{file_name}',
-        contour_output
+    morphology_count = count_contours(
+        morphology_combined
     )
 
-    # ===================================================
+    # ------------------------------------------------
+    # AREA FILTERING
+    # ------------------------------------------------
+
+    filtered_mask, final_contours = area_filter(
+        morphology_combined,
+        min_area=100
+    )
+
+    # ------------------------------------------------
+    # CONTOUR COUNT — FINAL
+    # ------------------------------------------------
+
+    final_count = len(final_contours)
+
+    # ------------------------------------------------
+    # PRINT RESULTS
+    # ------------------------------------------------
+
+    print("\n===================================")
+    print(f"File           : {file_name}")
+    print(f"Scene Type     : {scene_type}")
+    print(f"Brightness     : {brightness:.2f}")
+    print("===================================")
+
+    print(f"Raw HSV Contours          : {raw_count}")
+    print(f"After Morphology          : {morphology_count}")
+    print(f"After Area Filtering      : {final_count}")
+
+    print("===================================\n")
+
+    # ------------------------------------------------
     # VISUALIZATION
-    # ===================================================
+    # ------------------------------------------------
+
+    stages = [
+        raw_combined,
+        morphology_combined,
+        filtered_mask
+    ]
+
+    titles = [
+        f'Raw HSV\nContours: {raw_count}',
+        f'After Morphology\nContours: {morphology_count}',
+        f'After Area Filtering\nContours: {final_count}'
+    ]
 
     plt.figure(figsize=(18, 5))
 
     # ROI
-    plt.subplot(1, 3, 1)
+    plt.subplot(1, 4, 1)
 
     plt.imshow(
         cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
     )
 
-    plt.title("ROI")
+    plt.title(f'ROI ({scene_type})')
 
     plt.axis('off')
 
-    # FILTERED MASK
-    plt.subplot(1, 3, 2)
+    # Processing stages
+    for i in range(3):
 
-    plt.imshow(
-        final_mask,
-        cmap='gray'
-    )
+        plt.subplot(1, 4, i + 2)
 
-    plt.title("Filtered Mask")
-
-    plt.axis('off')
-
-    # CONTOURS
-    plt.subplot(1, 3, 3)
-
-    plt.imshow(
-        cv2.cvtColor(
-            contour_output,
-            cv2.COLOR_BGR2RGB
+        plt.imshow(
+            stages[i],
+            cmap='gray'
         )
-    )
 
-    plt.title(
-        f"Contours ({detected})"
-    )
+        plt.title(titles[i])
 
-    plt.axis('off')
+        plt.axis('off')
+
+    plt.suptitle(
+        f'{file_name} | Brightness = {brightness:.2f}',
+        fontsize=14
+    )
 
     plt.tight_layout()
 
     plt.show()
-
-    print(f"Processed: {file_name}")
